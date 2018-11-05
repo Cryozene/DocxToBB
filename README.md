@@ -21,7 +21,10 @@ Make sure that you have set the correct endline-characters in the .ini file. If 
 Yes. Any Empty line in the source file will be skipped by the parser, in order to create an homogenous look. Extra line-breaks currently can be added via the `searchFor` and `replaceWith` options, this behavior will change in future versions though 
 - **My headings are gone!**  
 Please do not format the with special options, such as chapters, but as normal Paragraphs. Currently, any changes in size won't be inherited. This also may change in a later version
-- **Everything is broken!**
+- **Everything is broken!**  
 Please open an issue and describe the issue as detailed as possible or conatct me by other means. I'll try to fix any bugs as fast as possible. 
+
+
+
 
 <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a><br />This work is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License</a>.
