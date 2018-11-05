@@ -3,6 +3,7 @@ import re
 import sys
 import codecs
 import datetime
+from unidecode import unidecode
 
 import Tkinter, tkFileDialog
 #import pyperclip # Needs to be imported late, incompatible with open tkFileDialog
@@ -30,20 +31,6 @@ class paraStyles:
             self.align = False
         return stack
 
-    ##deprecated
-    def setStyle(self, align, right, justify): 
-        stack = ''
-        if not justify == self.justify:
-            stack += ('[/j]')
-            self.justify = False
-        if not right == self.right:
-            stack += ('[/r]')
-            self.right = False
-        if not align == self.align:
-            stack += ('[/c]')
-            self.align = True
-        return stack
-
 
 def main(file):
     document = Document(file)
@@ -51,45 +38,72 @@ def main(file):
     newFileString = u''
     paraStyle = paraStyles()
     first = True
+    paraStack = False
     br = config['endlinechar'].decode('string_escape')
-    if eval(config['emptylineafterparagraph']):
+    if config['emptylineafterparagraph']:
         print br
         endline = br + br
     else:
         endline = br
     for para in document.paragraphs:
-        if para.text == '':
+
+        #skip empty lines
+        if config['skipemptylines'] and  para.text == '':
             continue
+
+        #handle first line and special lines
         if first:
             first = False
             if config['preamble']:
                 newFileString += config['preamble']
             newFileString += re.sub('(?<!\\\)\$', para.text, config['titleformat'])
-            if eval(config['addcopyright']):
+            if config['addcopyright']:
                 newFileString += br + u"\u00A9"
-                dateStr = datetime.datetime.now().strftime(config['copyrightdateformat']) + ' '
+                dateStr = config['copyrightdateformat'] + ' '
                 newFileString += re.sub('(?<!\\\)\$', dateStr, config['copyrightauthor'])
             continue
-        else:
-            newFileString += endline               
-
-        newPara = u''
-        
+       
+        #parse paragraph
+        newPara = u''       
         newPara, paraStyle = preamblePara(newPara, para, paraStyle)
-
         newPara = parsePara(newPara, para, paraStyle)
 
-        for special, replace in izip(eval(config['searchfor']), eval(config['replacewith'])):
+        #handle special replacement options
+        for special, replace in izip(config['searchfor'], config['replacewith']):
             newPara = re.sub(special, replace, newPara)
-        if eval(config['prunewhitespace']):
+        if config['prunewhitespace']:
             while newPara[-1] == ' ':
                 newPara = newPara[:-1]
 
+        #handle linebreaks
+        if newFileString[-1].endswith(u':'):
+            newFileString += br
+        elif newFileString[-1].endswith(u','):
+            newFileString += br
+        elif config['holdtogetherspeech']:
+            line = unidecode(newPara)
+            if paraStack:
+                if line.startswith(',') or line.startswith('"'):
+                    newFileString += br
+                else:
+                    newFileString += endline
+            else:
+                newFileString += endline
+            if line.endswith('"') and len(line.split(' '))<config['holdtogetherspeech'] :
+                paraStack = True
+            else:
+                paraStack = False
+        else:
+            newFileString += endline
+
+        #add to output          
         newFileString += newPara
+
     #close all open code-fragments and add postamble
     newFileString += paraStyle.closeInOrder()
     if config['postamble']:
                 newFileString += config['postamble']
+
     writeTxt(newFileString, file, config)
 
 def preamblePara(newPara, para, style):
@@ -166,11 +180,11 @@ def getFile():
 
 def writeTxt(txt, source, config):
     print 'Conversion Successfull'
-    if eval(config['clipboard']):
+    if config['clipboard']:
         import pyperclip # hacky workaround
         pyperclip.copy(txt)
         print 'Output copied to clipboard'
-    outputpath = eval(config['outputpath'])
+    outputpath = config['outputpath']
     if outputpath:
         outputName = os.path.splitext(os.path.basename(source))[0]
         outputName = re.sub('(?<!\\\)\$', outputName, config['outputname'])
@@ -189,7 +203,7 @@ def writeTxt(txt, source, config):
             text_file.write(txt)
         print 'Output saved as ' + outputName + '.txt'
         print str(len(txt)) + ' characters'
-        if eval(config['keepopen']):           
+        if config['keepopen']:           
             raw_input()
         raise SystemExit
         print 'Unknown Error, please exit manually'
@@ -197,8 +211,23 @@ def writeTxt(txt, source, config):
 def readConfig():
     config = RawConfigParser()
     config.readfp(codecs.open("DocxToBB.ini", "r", "utf-8"))
-
-    return  dict(config.items('DEFAULT'))
+    default = dict(config.items('DEFAULT'))
+    try:
+        default['keepopen'] = eval(default['keepopen'])
+        default['skipemptylines'] = eval(default['skipemptylines'])
+        default['outputpath'] = int(eval(default['outputpath']))
+        default['clipboard'] = eval(default['clipboard'])
+        default['emptylineafterparagraph'] = eval(default['emptylineafterparagraph'])
+        default['addcopyright'] = eval(default['addcopyright'])
+        default['prunewhitespace'] = eval(default['prunewhitespace'])
+        default['holdtogetherspeech'] = int(eval(default['holdtogetherspeech']))
+        default['datetime'] = datetime.datetime.now().strftime(default['copyrightdateformat'])
+        default['searchfor'] = eval(default['searchfor'])
+        default['replacewith'] = eval(default['replacewith'])
+        return  default
+    except:
+        print "Error while parsing config:", sys.exc_info()[0]
+        raise
 
 
 if __name__ == '__main__':
