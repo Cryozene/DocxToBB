@@ -18,9 +18,9 @@ Written for romane-forum.de
 - **Output looks ugly**  
 Please have a look at the various options in `DocxToBB.ini` and change them to your liking. Everything should be explained in the file.
 If you feel something is missing or doesn't behave as you expected, refer to **Everything is broken!**
-- **The Tool deletes linebreaks!**  
+- **The tool deletes linebreaks!**  
 Make sure that you have set the correct endline-characters in the .ini file. If you're using the standard notepad editor from Windows (seriously though: Why would you do that?), make sure that `pruneWhitespace` ist set to `True`  
-- **The Tool still deletes linebreaks!**  
+- **The tool still deletes linebreaks!**  
 Yes. Any Empty line in the source file will be skipped by the parser, in order to create an homogenous look. Extra line-breaks currently can be added via the `searchFor` and `replaceWith` options. If you wnat to turn off the behavior, set `skipemptylines` to `False`
 - **My headings are gone!**  
 Please do not format the with special options, such as chapters, but as standard Paragraphs. Currently, any changes in size won't be inherited. This may change in a later version though. 
