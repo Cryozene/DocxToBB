@@ -9,7 +9,8 @@ Written for romane-forum.de
 
 1. Executable is compiled for Windows 64-Bit systems, users on other systems will need to downlaod and use the source  
 2. Python-file is python 2.7, all requirements are in imports  
-3. To run, simply place DocxToBB.ini next to the excutable (or .py if running from source) No Installation needed!
+3. To run, simply place DocxToBB.ini next to the excutable (or .py if running from source).  
+*No installation needed!*
 4. Before starting for the first time, make sure to open DocxToBB.ini with the text-editor of your choice (I recommend notepad++), take a glance at the options and change the to your liking  
 5. Run the Executable, select a .docx file to convert - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
 
