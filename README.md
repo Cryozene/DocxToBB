@@ -7,9 +7,9 @@ Written for romane-forum.de
 
 ## How to use
 
-1. Executable is compiled for Windows 64-Bit systems, users on other systems will need to downlaod and use the source  
-2. Python-file is python 2.7, all requirements are in imports  
-3. To run, simply place DocxToBB.ini next to the excutable (or .py if running from source).  
+1. Executable is compiled for Windows 64-Bit systems directly from the source .py file, users on other systems will need to downlaod and use the source  
+2. Code is Python 2.7, all requirements are in imports  
+3. To run, simply place DocxToBB.ini next to the executable (or .py if running from source).  
 *No installation needed!*
 4. Before starting for the first time, make sure to open DocxToBB.ini with the text-editor of your choice (I recommend notepad++), take a glance at the options and change them to your liking  
 5. Run the Executable, select a .docx file to convert - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
@@ -22,7 +22,7 @@ If you feel something is missing or doesn't behave as you expected, refer to **E
 - **The tool deletes linebreaks!**  
 Make sure that you have set the correct endline-characters in the .ini file. If you're using the standard notepad editor from Windows (seriously though: Why would you do that?), make sure that `pruneWhitespace` ist set to `True`  
 - **The tool still deletes linebreaks!**  
-Yes. Any Empty line in the source file will be skipped by the parser, in order to create an homogenous look. Extra line-breaks currently can be added via the `searchFor` and `replaceWith` options. If you wnat to turn off the behavior, set `skipemptylines` to `False`
+Yes. Any Empty line in the source file will be skipped by the parser, in order to create an homogenous look. Extra line-breaks currently can be added via the `searchFor` and `replaceWith` options. If you want to turn off the behavior, set `skipemptylines` to `False`
 - **My headings are gone!**  
 Please do not format the with special options, such as chapters, but as standard Paragraphs. Currently, any changes in size won't be inherited. This may change in a later version though. 
 - **Everything is broken!**  
