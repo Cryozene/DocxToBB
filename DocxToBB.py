@@ -59,7 +59,7 @@ def main(file):
             newFileString += re.sub('(?<!\\\)\$', para.text, config['titleformat'])
             if config['addcopyright']:
                 newFileString += br + u"\u00A9"
-                dateStr = config['copyrightdateformat'] + ' '
+                dateStr = datetime.datetime.now().strftime(config['copyrightdateformat']) + ' '
                 newFileString += re.sub('(?<!\\\)\$', dateStr, config['copyrightauthor'])
             continue
        
@@ -90,7 +90,10 @@ def main(file):
             else:
                 newFileString += endline
             if line.endswith('"') and len(line.split(' '))<config['holdtogetherspeech'] :
-                paraStack = True
+                if paraStack:
+                    paraStack += newPara
+                else:
+                    paraStack = newPara
             else:
                 paraStack = False
         else:
