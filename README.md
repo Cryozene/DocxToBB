@@ -1,9 +1,9 @@
 # DocxToBB
-Creates a string out of a .docx file, that inherits select text-fonts with BBCode.  
+Creates a string out of a .docx (Added with 0.3: Also accepts .doc) file, that inherits select text-fonts with BBCode.  
 Written for romane-forum.de
 
 
-## Current Build: Beta 1 (Version 0.2) 
+## Current Build: Beta 1 (Version 0.3) 
 
 ## How to use
 
@@ -12,7 +12,7 @@ Written for romane-forum.de
 3. To run, simply place DocxToBB.ini next to the executable (or .py if running from source).  
 *No installation needed!*
 4. Before starting for the first time, make sure to open DocxToBB.ini with the text-editor of your choice (I recommend notepad++), take a glance at the options and change them to your liking  
-5. Run the Executable, select a .docx file to convert - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
+5. Run the Executable, select a file to convert - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
 
 ## Troubleshooting 
 
@@ -26,7 +26,7 @@ Yes. Any Empty line in the source file will be skipped by the parser, in order t
 - **My headings are gone!**  
 Please do not format the with special options, such as chapters, but as standard Paragraphs. Currently, any changes in size won't be inherited. This may change in a later version though. 
 - **Everything is broken!**  
-Please open an issue and describe the issue as detailed as possible or contact me by other means. I'll try to fix any bugs as fast as possible and add common problems to this section. 
+Please open an issue and describe you problem(s) as detailed as possible or contact me through other means. I'll try to fix any bugs as fast as possible and add common problems to this section. 
 
 
 
