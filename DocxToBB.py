@@ -69,18 +69,22 @@ def main():
     file = getFile()
     filename = os.path.basename(file)
     file, cleanup = genDocx(file)
-    docx = Document(file)
-    config = readConfig()
-    txt = parseDocx(docx, config)
-    writeTxt(txt, file, filename, config)
-    if cleanup:
-        try:
-            os.remove(file)
-        except OSError as e:  ## if failed, report it back to the user ##
-            print ("Error: %s - %s." % (e.filename, e.strerror))
-    if config['keepopen']:           
-            raw_input()
-    raise SystemExit
+    try:
+        docx = Document(file)
+        config = readConfig()
+        txt = parseDocx(docx, config)
+        writeTxt(txt, file, filename, config)
+    except Exception as e:
+        raise Exception, "The code is buggy: %s" % e, sys.exc_info()[2]
+    finally:
+        if cleanup:
+            try:
+                os.remove(file)
+            except OSError as e:  ## if failed, report it back to the user ##
+                print ("Error: %s - %s." % (e.filename, e.strerror))
+        if config['keepopen']:           
+                raw_input()
+        raise SystemExit
     print 'Unknown Error, please exit manually'
 
 def parseDocx(document, config):
@@ -116,7 +120,7 @@ def parseDocx(document, config):
        
         #parse paragraph
         newPara = u''       
-        newPara, paraStyle = preamblePara(newPara, para, paraStyle)
+        newPara, paraStyle = preamblePara(newPara, para, paraStyle, br)
         if config['parsecolors']:
             newPara = parseColoredPara(newPara, para, paraStyle)
         else:
@@ -124,7 +128,7 @@ def parseDocx(document, config):
 
         #handle special replacement options
         for special, replace in izip(config['searchfor'], config['replacewith']):
-            newPara = re.sub(special, replace, newPara)
+            newPara = re.sub(special, replace, newPara, flags=re.UNICODE)
         if config['prunewhitespace']:
             while newPara[-1] == ' ':
                 newPara = newPara[:-1]
@@ -164,7 +168,7 @@ def parseDocx(document, config):
     return newFileString
     
 
-def preamblePara(newPara, para, style):
+def preamblePara(newPara, para, style, br):
     if style.justify and not para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY:
         newPara += ('[/j]') 
         style.justify = False
@@ -174,14 +178,15 @@ def preamblePara(newPara, para, style):
     if style.align and not para.alignment == WD_ALIGN_PARAGRAPH.CENTER:
         newPara += ('[/c]') 
         style.align = False
+    #additional linebreaks needed, for enclosing environment
     if para.alignment == WD_ALIGN_PARAGRAPH.CENTER and not style.align:
-        newPara += ('[c]') 
+        newPara += (br +'[c]') 
         style.align = True
     if para.alignment == WD_ALIGN_PARAGRAPH.RIGHT and not style.right:
-        newPara += ('[r]') 
+        newPara += (br + '[r]') 
         style.right = True
     if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY and not style.justify:
-        newPara += ('[j]') 
+        newPara += (br + '[j]') 
         style.justify = True
     return newPara, style
 
@@ -379,7 +384,7 @@ def genDocx(path):
 
     word = win32.Dispatch("Word.Application")
     word.visible = 0
-    wb = word.Documents.Open(path)
+    wb = word.Documents.Open(os.path.abspath(path))
     wb.SaveAs2(out_file, FileFormat=16) # file format for docx
     wb.Close()
 
