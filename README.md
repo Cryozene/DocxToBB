@@ -3,7 +3,7 @@ Creates a string out of a .docx (Added with 0.3: Also accepts .doc) file, that i
 Written for romane-forum.de
 
 
-## Current Build: Beta 1 (Version 0.3) 
+## Current Build: Beta 1 (Version 0.4) 
 
 ## How to use
 
