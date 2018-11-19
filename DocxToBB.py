@@ -69,22 +69,22 @@ def main():
     file = getFile()
     filename = os.path.basename(file)
     file, cleanup = genDocx(file)
-    try:
-        docx = Document(file)
-        config = readConfig()
-        txt = parseDocx(docx, config)
-        writeTxt(txt, file, filename, config)
-    except Exception as e:
-        raise Exception, "The code is buggy: %s" % e, sys.exc_info()[2]
-    finally:
-        if cleanup:
-            try:
-                os.remove(file)
-            except OSError as e:  ## if failed, report it back to the user ##
-                print ("Error: %s - %s." % (e.filename, e.strerror))
-        if config['keepopen']:           
-                raw_input()
-        raise SystemExit
+    #try:
+    docx = Document(file)
+    config = readConfig()
+    txt = parseDocx(docx, config)
+    writeTxt(txt, file, filename, config)
+    #except Exception as e:
+    #    raise Exception, "The code is buggy: %s" % e, sys.exc_info()[2]
+    #finally:
+    if cleanup:
+        try:
+            os.remove(file)
+        except OSError as e:  ## if failed, report it back to the user ##
+            print ("Error: %s - %s." % (e.filename, e.strerror))
+    if config['keepopen']:           
+            raw_input()
+    raise SystemExit
     print 'Unknown Error, please exit manually'
 
 def parseDocx(document, config):
@@ -130,8 +130,10 @@ def parseDocx(document, config):
         for special, replace in izip(config['searchfor'], config['replacewith']):
             newPara = re.sub(special, replace, newPara, flags=re.UNICODE)
         if config['prunewhitespace']:
-            while newPara[-1] == ' ':
+            while newPara and newPara[-1] == ' ':
                 newPara = newPara[:-1]
+        if newPara == '' and config['skipemptylines']: # empty line created by replacements or pruning
+            continue
 
         #handle linebreaks
         if newFileString[-1].endswith(u':'):
@@ -170,13 +172,13 @@ def parseDocx(document, config):
 
 def preamblePara(newPara, para, style, br):
     if style.justify and not para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY:
-        newPara += ('[/j]') 
+        newPara += ('[/j]' + br) 
         style.justify = False
     if style.right and not para.alignment == WD_ALIGN_PARAGRAPH.RIGHT:
-        newPara += ('[/r]') 
+        newPara += ('[/r]' + br) 
         style.right = False
     if style.align and not para.alignment == WD_ALIGN_PARAGRAPH.CENTER:
-        newPara += ('[/c]') 
+        newPara += ('[/c]' + br) 
         style.align = False
     #additional linebreaks needed, for enclosing environment
     if para.alignment == WD_ALIGN_PARAGRAPH.CENTER and not style.align:
