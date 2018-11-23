@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import traceback
 import codecs
 import datetime
 import string
@@ -20,13 +21,58 @@ from itertools import izip
 import win32com.client as win32
 from win32com.client import constants
 
+##constants
+VERSION = 0.5
+NO_BREAK_SPACE = u"\u00A0"
+COPYRIGHT = u"\u00A9"
+PARASTACK_MAX = 6
+COLOR_BLACK = '00000'
+
+"""
+Holds all information about current formatting
+ALL format-Values accept None as a disabled state
+True and False should be checked explicitly
+"""
 class paraStyles:
-    align = False
-    right = False
-    justify = False
+    bold = None
+    italic = None
+    underline = None
+    strikethrough = None
+    align = None
+    right = None
+    justify = None
+    color = None
+    ident = u''
+    endline = 1
+    cEndlS = 1
+
+    def __init__(self, endline, ident, styleOptions):
+        self.endline = endline
+        self.cEndlS = endline
+        if styleOptions['justify']:
+            self.justify = False
+        if styleOptions['align']:
+            self.align = False
+        if styleOptions['floatright']:
+            self.right = False
+        if styleOptions['bold']:
+            self.bold = False 
+        if styleOptions['underline']:
+            self.underline = False  
+        if styleOptions['strikethrough']:
+            self.strikethrough = False
+        if styleOptions['italic']:
+            self.italic = False  
+        if styleOptions['parsecolors']:
+            self.color = False
+        if ident and ident > 0:
+            self.ident = u"\u00A0"*ident
 
     def closeInOrder(self):
         stack = ''
+        if self.color:
+            stack += ('[/color]')
+            self.color = False
         if self.justify:
             stack += ('[/j]')
             self.justify = False
@@ -36,7 +82,22 @@ class paraStyles:
         if self.align:
             stack += ('[/c]')
             self.align = False
+        if self.strikethrough:
+            stack += ('[/s]')
+            self.strikethrough = False
+        if self.underline:
+            stack += ('[/u]')
+            self.underline = False
+        if self.italic:
+            stack += ('[/i]')
+            self.italic = False
+        if self.bold:
+            stack += ('[/b]')
+            self.bold = False
         return stack
+
+    def nextLine(self):
+        self.cEndlS = self.endline
 
 ## timeout decorator
 def timeout(timeout):
@@ -66,40 +127,44 @@ def timeout(timeout):
 
 
 def main():
-    file = getFile()
-    filename = os.path.basename(file)
-    file, cleanup = genDocx(file)
-    #try:
-    docx = Document(file)
-    config = readConfig()
-    txt = parseDocx(docx, config)
-    writeTxt(txt, file, filename, config)
-    #except Exception as e:
-    #    raise Exception, "The code is buggy: %s" % e, sys.exc_info()[2]
-    #finally:
-    if cleanup:
+    try:
+        cleanup = False
+        file = getFile()
+        filename = os.path.basename(file)
+        file, cleanup = genDocx(file)
+        docx = Document(file)
+        config, styleOptions = readConfig()
+        txt = parseDocx(docx, config, styleOptions)
+        writeTxt(txt, file, filename, config)
+    except Exception as e:
+        print 'Damn, you found another bug.'
+        print "Please report the issue with the following information:"
+        traceback.print_exc(file=sys.stdout)
+        raw_input()
+    finally:
+        if cleanup:
+            try:
+                os.remove(file)
+            except OSError as e:  ## if failed, report it back to the user ##
+                print ("Error: %s - %s." % (e.filename, e.strerror))
         try:
-            os.remove(file)
-        except OSError as e:  ## if failed, report it back to the user ##
-            print ("Error: %s - %s." % (e.filename, e.strerror))
-    if config['keepopen']:           
-            raw_input()
+            if config['keepopen']:           
+                    raw_input()
+        except:
+            pass
     raise SystemExit
-    print 'Unknown Error, please exit manually'
 
-def parseDocx(document, config):
+def parseDocx(document, config, styleOptions):
     newFileString = u''
-    paraStyle = paraStyles()
     first = True
-    paraStack = False
+    paraStack = PARASTACK_MAX
     br = config['endlinechar']
     if config['emptylineafterparagraph']:
-        print br
-        endline = br + br
+        endline = 2
     else:
-        endline = br
+        endline = 1
+    paraStyle = paraStyles(endline, config['identfirstline'], styleOptions)
     for para in document.paragraphs:
-
         #skip empty lines
         if config['skipemptylines'] and  para.text == '':
             continue
@@ -109,22 +174,17 @@ def parseDocx(document, config):
             first = False
             if config['preamble']:
                 newFileString += config['preamble']
-            newFileString += re.sub('(?<!\\\)\$', para.text, config['titleformat'])
-            if config['addcopyright']:
-                cpr = u"\u00A9"
-                dateStr = datetime.datetime.now().strftime(config['copyrightdateformat']) + ' '
-                cpr += re.sub('(?<!\\\)\$', dateStr, config['copyrightauthor'])
-                cpr = re.sub('(?<!\\\)\$', cpr, config['copyrightstyle'])
-                newFileString += br + cpr
+            dateStr = datetime.datetime.now().strftime(config['copyrightdateformat'])
+            firstline = re.sub(r'(?<!\\)\\cr', COPYRIGHT, config['header'], flags=re.UNICODE)
+            firstline = re.sub(r'(?<!\\)\\date', dateStr, firstline, flags=re.UNICODE)
+            firstline = re.sub(r'(?<!\\)\\title', para.text, firstline, flags=re.UNICODE)
+            newFileString += firstline
             continue
        
         #parse paragraph
         newPara = u''       
         newPara, paraStyle = preamblePara(newPara, para, paraStyle, br)
-        if config['parsecolors']:
-            newPara = parseColoredPara(newPara, para, paraStyle)
-        else:
-            newPara = parsePara(newPara, para, paraStyle)
+        newPara = parsePara(newPara, para, paraStyle)
 
         #handle special replacement options
         for special, replace in izip(config['searchfor'], config['replacewith']):
@@ -132,32 +192,31 @@ def parseDocx(document, config):
         if config['prunewhitespace']:
             while newPara and newPara[-1] == ' ':
                 newPara = newPara[:-1]
-        if newPara == '' and config['skipemptylines']: # empty line created by replacements or pruning
+        if not newPara and config['skipemptylines']: # empty line created by replacements or pruning
             continue
 
         #handle linebreaks
-        if newFileString[-1].endswith(u':'):
-            newFileString += br
-        elif newFileString[-1].endswith(u','):
-            newFileString += br
-        elif config['holdtogetherspeech']:
-            line = unidecode(newPara)
-            if paraStack:
-                if line.startswith(',') or line.startswith('"'):
-                    newFileString += br
+        if (        config['holdtogetherspeech']
+            and not newFileString[-1].endswith(u':') 
+            and not newFileString[-1].endswith(u',')
+           ):
+            line = unidecode(newPara)        
+            if 0 < paraStack <= PARASTACK_MAX:
+                if paraStack < PARASTACK_MAX and startsWithSpeech(line):
+                    paraStyle.cEndlS -= 1
+                if endsWithSpeech(line) and len(line.split(' '))<=config['holdtogetherspeech'] :
+                    paraStack -= 1
                 else:
-                    newFileString += endline
+                    paraStack = PARASTACK_MAX
             else:
-                newFileString += endline
-            if line.endswith('"') and len(line.split(' '))<config['holdtogetherspeech'] :
-                if paraStack:
-                    paraStack += newPara
-                else:
-                    paraStack = newPara
-            else:
-                paraStack = False
-        else:
-            newFileString += endline
+                paraStack = PARASTACK_MAX
+
+        #create linebreaks if necessary
+        for _ in range(paraStyle.cEndlS):
+            newFileString += br
+
+        #reset endline
+        paraStyle.nextLine()
 
         #add to output          
         newFileString += newPara
@@ -170,135 +229,116 @@ def parseDocx(document, config):
     return newFileString
     
 
-def preamblePara(newPara, para, style, br):
-    if style.justify and not para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY:
-        newPara += ('[/j]' + br) 
+def preamblePara(newPara, para, style, parseColor):
+    paraAlignment = getParaAlignment(para)
+    
+    if style.justify is True and not paraAlignment == WD_ALIGN_PARAGRAPH.JUSTIFY:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[/j]') 
         style.justify = False
-    if style.right and not para.alignment == WD_ALIGN_PARAGRAPH.RIGHT:
-        newPara += ('[/r]' + br) 
+    elif style.right is True and not paraAlignment == WD_ALIGN_PARAGRAPH.RIGHT:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[/r]') 
         style.right = False
-    if style.align and not para.alignment == WD_ALIGN_PARAGRAPH.CENTER:
-        newPara += ('[/c]' + br) 
+    elif style.align is True and not paraAlignment == WD_ALIGN_PARAGRAPH.CENTER:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[/c]') 
         style.align = False
-    #additional linebreaks needed, for enclosing environment
-    if para.alignment == WD_ALIGN_PARAGRAPH.CENTER and not style.align:
-        newPara += (br +'[c]') 
+
+    if style.align is False and paraAlignment == WD_ALIGN_PARAGRAPH.CENTER:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[c]') 
         style.align = True
-    if para.alignment == WD_ALIGN_PARAGRAPH.RIGHT and not style.right:
-        newPara += (br + '[r]') 
+    elif style.right is False and paraAlignment == WD_ALIGN_PARAGRAPH.RIGHT:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[r]') 
         style.right = True
-    if para.alignment == WD_ALIGN_PARAGRAPH.JUSTIFY and not style.justify:
-        newPara += (br + '[j]') 
+    elif style.justify is False and paraAlignment == WD_ALIGN_PARAGRAPH.JUSTIFY:
+        space, style = checkSpecialEndline(style)
+        newPara += (space + '[j]') 
         style.justify = True
+    newPara += style.ident
     return newPara, style
 
+def getParaAlignment(para):
+    if para.alignment:
+        return para.alignment
+    if para.paragraph_format.alignment:
+        return para.paragraph_format.alignment
+    if para.style.paragraph_format.alignment:
+        return para.style.paragraph_format.alignment
+    return None
 
-def parsePara(newPara, para, style):
-    #Definitions
-    bold = False
-    italic = False
-    underline = False
-    strikethrough = False
-    #main
-    for run in para.runs:
-        if strikethrough and not run.font.strike:
-            newPara += ('[/s]')
-            strikethrough = False
-        if underline and not run.underline:
-            newPara += ('[/u]')
-            underline = False
-        if italic and not run.italic:
-            newPara += ('[/i]')
-            italic = False
-        if bold and not run.bold:
-            newPara += ('[/b]')
-            bold = False
-        if run.bold and not bold:
-            newPara += ('[b]')
-            bold = True
-        if run.italic and not italic:
-            newPara += ('[i]')
-            italic = True
-        if run.underline and not underline:
-            newPara += ('[u]')
-            underline = True
-        if run.font.strike and not strikethrough:
-            newPara += ('[s]')
-            strikethrough = True
-        newPara += (run.text)
-    if strikethrough:
-        newPara += ('[/u]')
-    if underline:
-        newPara += ('[/u]')
-    if italic:
-        newPara += ('[/i]')
-    if bold:
-        newPara += ('[/b]')
-    return newPara
+#removes a linebreak and adds a special NoBreakSpace, if necessary
+def checkSpecialEndline(style):
+     space = u''
+     if style.cEndlS > 0:
+        style.cEndlS -= 1
+        space = NO_BREAK_SPACE
+     return space, style
 
 #copy of parsePara with added capability for parsing special colors to Text
 #heavy implication for adding additional characters and parsing time
-def parseColoredPara(newPara, para, style):
+def parsePara(newPara, para, style):
     #Definitions
-    bold = False
-    italic = False
-    underline = False
-    strikethrough = False
-    color = '00000'
-    colorchanged = False
     #main
+    newcolor = None
     for run in para.runs:
-        if colorchanged:
-            if run.font.color.rgb:
-                col = str(run.font.color.rgb)
-                if not col == color:
+        if not style.color is None and run.font.color.rgb:
+            col = str(run.font.color.rgb)
+            if col != style.color:
+                if style.color:
                     newPara += ('[/color]')
-                    newPara += ('[color=#' + col + ']')
-                else:
-                    pass # no color change
+                newcolor = ('[color=#' + col + ']')
+                style.color = col
             else:
-                newPara += ('[/color]')
-                colorchanged = False
-        if strikethrough and not run.font.strike:
+                pass # no color change
+        elif style.color:
+            newPara += ('[/color]')
+            style.color = False
+        if style.strikethrough is True and not run.font.strike:
             newPara += ('[/s]')
-            strikethrough = False
-        if underline and not run.underline:
+            style.strikethrough = False
+        if style.underline is True and not run.underline:
             newPara += ('[/u]')
-            underline = False
-        if italic and not run.italic:
+            style.underline = False
+        if style.italic is True and not run.italic:
             newPara += ('[/i]')
-            italic = False
-        if bold and not run.bold:
+            style.italic = False
+        if style.bold is True and not run.bold:
             newPara += ('[/b]')
-            bold = False
-        if run.bold and not bold:
+            style.bold = False
+        if style.bold is False and run.bold:
             newPara += ('[b]')
-            bold = True
-        if run.italic and not italic:
+            style.bold = True
+        if style.italic is False and run.italic:
             newPara += ('[i]')
-            italic = True
-        if run.underline and not underline:
+            style.italic = True
+        if style.underline is False and run.underline:
             newPara += ('[u]')
-            underline = True
-        if run.font.strike and not strikethrough:
+            style.underline = True
+        if style.strikethrough is False and run.font.strike:
             newPara += ('[s]')
-            strikethrough = True
-        if not colorchanged and run.font.color.rgb:
-            color = str(run.font.color.rgb)
-            newPara += ('[color=#' + color + ']')
-            colorchanged = True
+            style.strikethrough = True
+        if style.color is False and newcolor:
+            newPara += newcolor
+            newcolor = None
         newPara += (run.text)
-    if strikethrough:
-        newPara += ('[/u]')
-    if underline:
-        newPara += ('[/u]')
-    if italic:
-        newPara += ('[/i]')
-    if bold:
-        newPara += ('[/b]')
-    if colorchanged:
-        newPara += ('[/color]')
     return newPara
+
+def endsWithSpeech(line):
+    if line.endswith('"'):
+        return True
+    else:
+        return False
+
+def startsWithSpeech(line):
+    if (    line.startswith(',') 
+        or  line.startswith('"')
+        ):
+        return True
+    else:
+        return False
 
 def getFile():
     root = Tkinter.Tk()
@@ -340,35 +380,55 @@ def writeTxt(txt, source, filename, config):
 def readConfig():
     config = RawConfigParser()
     config.readfp(codecs.open("DocxToBB.ini", "r", "utf-8"))
+    version = dict(config.items('Version'))
     default = dict(config.items('DEFAULT'))
+    styleOptions = dict(config.items('StyleOptions'))
     try:
+        version = str(version['version'])
+        if version != str(VERSION):
+            handleVersionError(config)
+
         default['keepopen'] = eval(default['keepopen'])
         default['skipemptylines'] = eval(default['skipemptylines'])
         default['outputpath'] = int(eval(default['outputpath']))
         default['clipboard'] = eval(default['clipboard'])
         default['emptylineafterparagraph'] = eval(default['emptylineafterparagraph'])
-        default['addcopyright'] = eval(default['addcopyright'])
         default['prunewhitespace'] = eval(default['prunewhitespace'])
-        default['parsecolors'] = eval(default['parsecolors'])
         default['holdtogetherspeech'] = int(eval(default['holdtogetherspeech']))
+        default['identfirstline'] = int(eval(default['identfirstline']))
         default['datetime'] = datetime.datetime.now().strftime(default['copyrightdateformat'])
         default['searchfor'] = eval(default['searchfor'])
         default['replacewith'] = eval(default['replacewith'])
         default['endlinechar'] = default['endlinechar'].decode('string_escape')
         default['preamble'] = replaceLinebreaks(default['endlinechar'], default['preamble'])
         default['postamble'] = replaceLinebreaks(default['endlinechar'], default['postamble'])
-        default['titleformat'] = replaceLinebreaks(default['endlinechar'], default['titleformat'])
-        default['copyrightauthor'] = replaceLinebreaks(default['endlinechar'], default['copyrightauthor'])
-        default['copyrightstyle'] = replaceLinebreaks(default['endlinechar'], default['copyrightstyle'])
+        default['header'] = replaceLinebreaks(default['endlinechar'], default['header'])
         for i in range(len(default['replacewith'])):
-            default['replacewith'][i] = replaceLinebreaks(default['endlinechar'], default['replacewith'][i])   
-        return  default
+            default['replacewith'][i] = replaceLinebreaks(default['endlinechar'], default['replacewith'][i])
+         
+        styleOptions['justify'] = eval(styleOptions['justify'])
+        styleOptions['align'] = eval(styleOptions['align'])    
+        styleOptions['floatright'] = eval(styleOptions['floatright'])    
+        styleOptions['bold'] = eval(styleOptions['bold'])    
+        styleOptions['underline'] = eval(styleOptions['underline'])    
+        styleOptions['strikethrough'] = eval(styleOptions['strikethrough'])    
+        styleOptions['italic'] = eval(styleOptions['italic'])    
+        styleOptions['parsecolors'] = eval(styleOptions['parsecolors'])         
+        return  default, styleOptions
+        #additional validation
+        if not default['emptylineafterparagraph']:
+            default['holdtogetherspeech'] = 0
     except:
         print "Error while parsing config:", sys.exc_info()[0]
         raise
 
 def replaceLinebreaks(endline, input):
-    return re.sub('(?<!\\\)\[\/br\]', endline, input)
+    return re.sub(r'(?<!\\)\[\/br\]', endline, input, flags=re.UNICODE)
+
+def handleVersionError(config):
+    print 'Version of config incompatible with current Version of Parser.'
+    print 'Trying to update automatically ...'
+    raise NotImplementedError
 
 @timeout(30)
 def genDocx(path):
