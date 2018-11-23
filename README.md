@@ -3,11 +3,11 @@ Creates a string out of a .docx (Added with 0.3: Also accepts .doc) file, that i
 Written for romane-forum.de
 
 
-## Current Build: Beta 1 (Version 0.4) 
+## Current Build: Beta 1 (Version 0.5) 
 
 ## How to use
 
-1. Executable is compiled for Windows 64-Bit systems directly from the source .py file, users on other systems will need to downlaod and use the source  
+1. Executable is compiled for Windows 64-Bit systems directly from the source .py file, users on other systems will need to download and use the source  
 2. Code is Python 2.7, all requirements are in imports  
 3. To run, simply place DocxToBB.ini next to the executable (or .py if running from source).  
 *No installation needed!*
@@ -18,7 +18,7 @@ Written for romane-forum.de
 
 - **Output looks ugly**  
 Please have a look at the various options in `DocxToBB.ini` and change them to your liking. Everything should be explained in the file.
-If you feel something is missing or doesn't behave as you expected, refer to **Everything is broken!**
+If you feel something is missing or doesn't behave as expected, refer to **Everything is broken!**
 - **The tool deletes linebreaks!**  
 Make sure that you have set the correct endline-characters in the .ini file. If you're using the standard notepad editor from Windows (seriously though: Why would you do that?), make sure that `pruneWhitespace` ist set to `True`  
 - **The tool still deletes linebreaks!**  
