@@ -1184,7 +1184,7 @@ class TextToBB(object):
                 if self.parsedTXT:
                     self.ShowInfoText(None, info=self.parsedTXT)
         except TimeoutError:
-            self.status('Timeout while trying to write. Please ensure TextToBB has WriteAcces to the directory your source-file is in.')
+            self.status('Timeout while trying to write. Please ensure TextToBB has WriteAccess to the directory your source-file is in.')
         except Exception as e:
             print('Damn, you found another bug.')
             print("Please report the issue with the following information:")
@@ -1236,10 +1236,8 @@ class TextToBB(object):
             self.config['searchandreplace'][self.srSelection][2] = caller.get()
         elif name =='srreplace':
             self.config['searchandreplace'][self.srSelection][3] = caller.get()
-        elif name == 'preview':
-            if self.preview.get():
-                if self.parsedTXT:
-                    self.ShowInfoText(None, info=self.parsedTXT)
+        if self.preview.get():
+            self.convert()
         
 
     def getFile(self):
