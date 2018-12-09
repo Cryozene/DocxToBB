@@ -474,7 +474,7 @@ class ConfigValidator:
 
     def isBB(self, value):
         try:
-            value = str(value).encode().decode('unicode-escape')
+            value = str(value).encode('latin').decode('unicode-escape')
             #TODO validate BB
         except Exception as e:
             raise BadConfigException(infomsg="Can't parse string")
@@ -1159,9 +1159,9 @@ class TextToBB(object):
     def getMaxSrImportance(self):
         return self.config['searchandreplace'][0][0]
 
-    def convert(self):
+    def convert(self, suppressPopup=False):
         try:
-            tryParseConfig(self.config, self.style_enabled, validator=self.configValidator)
+            tryParseConfig(self.config, self.style_enabled, validator=self.configValidator, suppressPopup=True)
         except BadConfigException as e:
             origin, msg = e.getInfo()
             self.status.set('Error while parsing' + str(origin) +' : ' + msg)
@@ -1185,6 +1185,13 @@ class TextToBB(object):
                     self.ShowInfoText(None, info=self.parsedTXT)
         except TimeoutError:
             self.status('Timeout while trying to write. Please ensure TextToBB has WriteAccess to the directory your source-file is in.')
+        except BadConfigException as e:
+            origin, msg = e.getInfo()
+            self.status.set('Error while parsing' + str(origin) +' : ' + msg)
+            return
+        except DeprecatedConfigException as e:
+            self.status.set('Missing config-data: Backup/rename your current config-file manually and try again')
+            return
         except Exception as e:
             print('Damn, you found another bug.')
             print("Please report the issue with the following information:")
@@ -1237,7 +1244,13 @@ class TextToBB(object):
         elif name =='srreplace':
             self.config['searchandreplace'][self.srSelection][3] = caller.get()
         if self.preview.get():
-            self.convert()
+            try:
+                self.convert(suppressPopup=True)
+            except BadConfigException as e:
+                origin, msg = e.getInfo()
+                self.status.set('Error while parsing' + str(origin) +' : ' + msg)
+            except UnicodeDecodeError:
+                self.status.set('Unknown Unicode sequence in settings')
         
 
     def getFile(self):
@@ -1342,7 +1355,7 @@ def parseDocx(document, config, styleOptions, maxparagraphs=sys.maxsize):
     #close all open code-fragments and add postamble
     newFileString += paraStyle.closeInOrder()
     if config['postamble']:
-        newFileString += replaceLinebreaks(config['endlinechar'], config['preamble'])
+        newFileString += replaceLinebreaks(config['endlinechar'], config['postamble'])
 
     return newFileString   
 
@@ -1474,22 +1487,19 @@ def readConfig(validator = ConfigValidator()):
         handleVersionError(config)
     return tryParseConfig(default, styleOptions) 
 
-def tryParseConfig(default, styleOptions, validator = ConfigValidator()):   
-    try:
-        default['endlinechar'] = u"\r\n"
-        while True:
-            try:
-                default, styleOptions = validator.parseConfig((default, styleOptions))
-                break
-            except BadConfigException as e:
-                    handleBadConfig(e, (default, styleOptions), validator=validator)     
-        if not default['emptylineafterparagraph']:
-            default['holdtogetherspeech'] = 0
-        return  default, styleOptions
-        #additional validation
-    except Exception as e:
-        traceback.print_exc(file=sys.stdout)
-        raise SystemExit
+def tryParseConfig(default, styleOptions, validator = ConfigValidator(), suppressPopup=False):   
+    default['endlinechar'] = u"\r\n"
+    while True:
+        try:
+            default, styleOptions = validator.parseConfig((default, styleOptions))
+            break
+        except BadConfigException as e:
+            if not suppressPopup:
+                handleBadConfig(e, (default, styleOptions), validator=validator)     
+            else: raise e
+    if not default['emptylineafterparagraph']:
+        default['holdtogetherspeech'] = 0
+    return  default, styleOptions
 
 #handle Config Errors
 def handleMissingConfig(validator=ConfigValidator()):
