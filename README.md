@@ -8,13 +8,12 @@ Written for romane-forum.de
 
 ## How to use
 
-1. Executable is compiled for Windows 64-Bit systems directly from the source .py file, users on other systems will need to download and use the source  
-2. Code is Python 3.7  
-3. To run, simply start the executable(or .py if running form source)
+1. Executable is compiled for Windows 64-Bit systems directly from the source .py file, users on other systems will need to download and use the source (Python 3.7)  
+2. To run, simply start the executable(or .py if running form source)
 *No installation needed!*
-4. When starting the first time, most likely an alert will inform you, that 'DocxToBB.ini' is missing. Click 'OK' for it to be generated
-5. Select a file to convert, press 'Convert' - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
-6.As long as 'preview' is enabled, a preview of your file will present itself at the bottom. Make sure to change the settings and convert as often as you like, until you are satisfied with the result. All settings will be saved, when 'Convert' is pressed (even when no file is selected!). Possible Errors will be displayed up top.
+3. When starting the first time, most likely an alert will inform you, that 'DocxToBB.ini' is missing. Click 'OK' for it to be generated
+4. Select a file to convert, press 'Convert' - finished. If the `clipboard`-option is set to true, simply paste the resulting text at the desired place
+5. As long as 'preview' is enabled, a preview of your file will present itself at the bottom. Make sure to change the settings and convert as often as you like, until you are satisfied with the result. All settings will be saved, when 'Convert' is pressed (even when no file is selected!). Possible Errors will be displayed up top.
 
 ## Troubleshooting 
 
